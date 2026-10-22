@@ -1,9 +1,20 @@
-# latto
+<div align="center">
+  <h1>latto</h1>
+  <p><strong>A dynamic island for Linux</strong></p>
+  <p>Media, alerts and notifications in a compact Quickshell interface.</p>
+  <p>
+    <a href="https://quickshell.org">Quickshell</a>
+    &nbsp;•&nbsp;
+    <a href="https://github.com/Fadilix/latto">Source</a>
+  </p>
+  <video src="./demo/demo.mp4" controls width="900">
+    <a href="./demo/demo.mp4">Watch the demo</a>
+  </video>
+</div>
 
-A Dynamic Island for Linux, built with [Quickshell](https://quickshell.org).
-One island sits at the top centre of each monitor. It shows media, system
-alerts and your notifications, and expands on hover into tabs for media,
-notifications, stats, timers, clipboard, calendar and an overview.
+One island sits at the top centre of each monitor and expands on hover into
+tabs for media, notifications, stats, timers, clipboard, calendar and an
+overview.
 
 ## Install
 
