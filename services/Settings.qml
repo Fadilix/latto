@@ -28,6 +28,8 @@ FileView {
         property int nowPlayingDuration: 4000
         // Claude Code live activity (fed by the hooks install.sh sets up).
         property bool claudeActivity: true
+        // How long "needs input" stays on the island, in ms.
+        property int claudeInputDuration: 10000
         // Pomodoro lengths in minutes; a long break follows every
         // pomodoroRounds focus sessions. Focus sessions turn on Do Not
         // Disturb when pomodoroDnd is set.
@@ -46,6 +48,9 @@ FileView {
         property int notificationDuration: 5000
         // Critical notifications still pop up during Do Not Disturb.
         property bool dndAllowCritical: true
+        // No banner for notifications from the app you're already using (its
+        // window is focused); they still go to the history.
+        property bool quietWhenFocused: true
         property int lowBatteryPercent: 15
         property int hudDuration: 1500
         property int statsInterval: 2000
@@ -68,6 +73,7 @@ FileView {
     readonly property alias mediaAlwaysShown: adapter.mediaAlwaysShown
     readonly property alias nowPlayingDuration: adapter.nowPlayingDuration
     readonly property alias claudeActivity: adapter.claudeActivity
+    readonly property alias claudeInputDuration: adapter.claudeInputDuration
     readonly property alias pomodoroFocusMinutes: adapter.pomodoroFocusMinutes
     readonly property alias pomodoroBreakMinutes: adapter.pomodoroBreakMinutes
     readonly property alias pomodoroLongBreakMinutes: adapter.pomodoroLongBreakMinutes
@@ -78,6 +84,7 @@ FileView {
     readonly property alias notificationsEnabled: adapter.notificationsEnabled
     readonly property alias notificationDuration: adapter.notificationDuration
     readonly property alias dndAllowCritical: adapter.dndAllowCritical
+    readonly property alias quietWhenFocused: adapter.quietWhenFocused
     readonly property alias lowBatteryPercent: adapter.lowBatteryPercent
     readonly property alias hudDuration: adapter.hudDuration
     readonly property alias statsInterval: adapter.statsInterval

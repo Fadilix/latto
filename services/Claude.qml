@@ -100,13 +100,27 @@ QtObject {
             : session);
     }
 
-    // Keep the island's activity queue in step with the shown session.
+    // The session and state last put on the island, e.g. "abc:input".
+    property string shownKey: ""
+
+    // Keep the island's activity queue in step with the shown session. Work
+    // stays up while it runs; "needs input" shows for a while when Claude
+    // starts waiting, then gets out of the way. Repeated wait signals don't
+    // bring it back; only a new wait (after more work) does.
     onCurrentChanged: {
-        if (current && Settings.claudeActivity)
-            Activities.show("claude", current.state === "input" ? 66 : 45,
-                { label: current.project, value: -1 }, 0);
-        else
+        if (!current || !Settings.claudeActivity) {
             Activities.dismiss("claude");
+            shownKey = "";
+            return;
+        }
+        const key = current.id + ":" + current.state;
+        if (current.state === "input") {
+            if (key !== shownKey)
+                Activities.show("claude", 66, { label: current.project, value: -1 }, Settings.claudeInputDuration);
+        } else {
+            Activities.show("claude", 45, { label: current.project, value: -1 }, 0);
+        }
+        shownKey = key;
     }
 
     property IpcHandler ipc: IpcHandler {

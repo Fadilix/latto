@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import Quickshell.Wayland
 
 // The notification daemon (org.freedesktop.Notifications) and Do Not Disturb.
 // New notifications pop up on the island unless Do Not Disturb is on; critical
@@ -103,6 +104,36 @@ QtObject {
         return Settings.notificationDuration;
     }
 
+    // True when the notification comes from the app whose window is focused:
+    // you are already looking at it, so a banner would only get in the way.
+    // Matched on the window's app id and its desktop entry (VS Code's window
+    // is "code", its notifications say "Visual Studio Code"), never on partial
+    // names, so "Claude Code" doesn't match a focused VS Code.
+    function fromFocusedApp(notification) {
+        const focused = ToplevelManager.activeToplevel;
+        return !!(focused && focused.activated) && isFromApp(notification, focused.appId);
+    }
+
+    // Whether a notification was sent by the app with this window app id.
+    function isFromApp(notification, appId) {
+        if (!appId)
+            return false;
+        const plain = text => (text || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const appNames = [plain(appId)];
+        const entry = DesktopEntries.heuristicLookup(appId);
+        if (entry)
+            appNames.push(plain(entry.id), plain(entry.name), plain(entry.icon));
+
+        return [notification.desktopEntry, notification.appName, notification.appIcon]
+            .map(plain)
+            .filter(name => name !== "")
+            .some(name => appNames.includes(name));
+    }
+
+    // Window list and desktop entries load lazily; touching them starts that.
+    readonly property int knownWindows: ToplevelManager.toplevels.values.length
+    readonly property int knownApps: DesktopEntries.applications.values.length
+
     function receive(notification) {
         notification.tracked = true;
 
@@ -119,7 +150,8 @@ QtObject {
         if (notification.transient)
             pendingExpiry = pendingExpiry.concat([{ notification: notification, at: Date.now() + popupDuration(notification) }]);
 
-        const muted = doNotDisturb && !(Settings.dndAllowCritical && isCritical(notification));
+        const muted = (doNotDisturb && !(Settings.dndAllowCritical && isCritical(notification)))
+            || (Settings.quietWhenFocused && fromFocusedApp(notification));
         if (!muted) {
             Activities.show("notification", isCritical(notification) ? 95 : 65,
                 { notification: notification, label: notification.summary, value: -1 },

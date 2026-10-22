@@ -99,7 +99,9 @@ Hover the island to open it; move the pointer away to close it.
   Foo.qml", "Running a command"), and the same elapsed time and output tokens
   as Claude Code's own status line ("2m 10s · ↓ 9.3k"), read from its
   transcript so they stay right even if latto restarts mid-task. Waiting for
-  permission or a reply turns it into a pulsing dot with "Needs input". Several
+  permission or a reply turns it into a pulsing dot with "Needs input" for 10
+  seconds (`claudeInputDuration`), then the island steps back; it returns only
+  for a new wait, not for the same one signalled again. Several
   sessions show as "+N". Set `claudeActivity` to `false` to turn it off.
 - **Alerts:** volume, brightness, charging, low battery, Bluetooth connect
   and disconnect, timer finished, Do Not Disturb changes, and Caps Lock (shown
@@ -117,6 +119,10 @@ Hover the island to open it; move the pointer away to close it.
   and grows into the banner, then shrinks back into a dot and vanishes when
   it is done. Set `hideInFullscreen` to `false` to keep the island visible.
   (Hyprland only.)
+- **Already in the app:** a notification from the app whose window is focused
+  gets no banner (it still goes to the history), since you're already looking
+  at it. Claude Code's notifications stay quiet while its terminal is focused,
+  tmux included. Set `quietWhenFocused` to `false` to always show banners.
 - **Do Not Disturb:** banners are held back and notifications go straight to
   the history. Critical ones still show, unless `dndAllowCritical` is
   `false`. The setting survives restarts.
@@ -176,8 +182,11 @@ installer copies it to `~/.claude/hooks/` and registers it in
 
 | Event | Island shows |
 |---|---|
-| Claude needs permission | **Needs your input · project**, critical (stays until handled, shows during Do Not Disturb) |
-| Claude is waiting for you | **Needs your input · project** |
+| Claude needs permission | **Needs your input · project**, for 12 seconds |
+| Claude is waiting for you | **Needs your input · project**, for 8 seconds |
+
+The same "needs your input" message for a session is sent once, not again
+within five minutes, so dismissing it is final.
 | Claude finished a response | **Finished · project**, with the start of its reply |
 
 A second hook, `latto-activity.sh`, feeds the live activity. It runs
