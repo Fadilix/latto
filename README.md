@@ -206,4 +206,3 @@ installer downloads it from claude.ai; without it, a generic icon is used.
   sensor.
 - The khal calendar integration has not been tested against a real khal
   setup.
-# latto
