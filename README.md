@@ -7,9 +7,10 @@
     &nbsp;•&nbsp;
     <a href="https://github.com/Fadilix/latto">Source</a>
   </p>
-  <video src="./demo/demo.mp4" controls width="900">
-    <a href="./demo/demo.mp4">Watch the demo</a>
-  </video>
+
+https://github.com/user-attachments/assets/74d95953-1032-440e-93c5-30213e43e6aa
+
+
 </div>
 
 One island sits at the top centre of each monitor and expands on hover into
