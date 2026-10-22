@@ -4,12 +4,18 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// NetworkManager state via nmcli: the Wi-Fi radio, active connections, and
-// (while a view watches) nearby Wi-Fi networks to connect to.
+// NetworkManager state via nmcli: the Wi-Fi radio, active connections,
+// whether the network wants a web sign-in (a captive portal), and (while a
+// view watches) nearby Wi-Fi networks to connect to.
 QtObject {
     id: root
 
     property bool wifiEnabled: false
+    // NetworkManager's connectivity: "full", "limited", "portal", "none"...
+    property string connectivity: ""
+    readonly property bool portal: connectivity === "portal"
+    // Any plain-HTTP page: a captive portal redirects it to its sign-in page.
+    readonly property string portalProbeUrl: "http://neverssl.com"
     // [{ name, type }], e.g. { name: "Home", type: "802-11-wireless" }
     property var connections: []
 
@@ -19,6 +25,7 @@ QtObject {
     property bool scanning: false
     // The network being connected to, and the last failure for it.
     property string connecting: ""
+    property bool connectingEnterprise: false
     property string failedSsid: ""
     property string error: ""
 
@@ -144,30 +151,39 @@ QtObject {
     // --- connecting --------------------------------------------------------
 
     // Saved and open networks connect straight away. A new secured network
-    // needs `password`, which goes to NetworkManager on stdin (never on a
-    // command line, where other programs could read it) for a new profile;
-    // a failed attempt removes that profile again.
-    function connect(network, password) {
+    // needs `password` (and `identity`, the username, for an enterprise one).
+    // The password goes to NetworkManager on stdin, never on a command line
+    // where other programs could read it, for a new profile; a failed attempt
+    // removes that profile again. Enterprise networks use PEAP with MSCHAPv2,
+    // the common username-and-password setup (eduroam, most campuses), and
+    // don't check the server certificate.
+    function connect(network, password, identity) {
         if (connecting !== "")
             return;
         connecting = network.ssid;
+        connectingEnterprise = network.enterprise && !network.known;
         failedSsid = "";
         error = "";
 
+        const cleanup = " || { status=$?; nmcli connection delete id \"$1\" >/dev/null 2>&1; exit $status; }";
         let script;
         if (network.known)
             script = "nmcli connection up id \"$1\"";
         else if (!network.secure)
             script = "nmcli device wifi connect \"$1\"";
+        else if (network.enterprise)
+            script = "nmcli connection add type wifi con-name \"$1\" ssid \"$1\" wifi-sec.key-mgmt wpa-eap"
+                + " 802-1x.eap peap 802-1x.phase2-auth mschapv2 802-1x.identity \"$3\" >/dev/null"
+                + " && printf '802-1x.password:%s\\n' \"$LATTO_WIFI_PSK\""
+                + " | nmcli connection up id \"$1\" passwd-file /dev/stdin" + cleanup;
         else
             script = "nmcli connection add type wifi con-name \"$1\" ssid \"$1\" wifi-sec.key-mgmt \"$2\" >/dev/null"
                 + " && printf '802-11-wireless-security.psk:%s\\n' \"$LATTO_WIFI_PSK\""
-                + " | nmcli connection up id \"$1\" passwd-file /dev/stdin"
-                + " || { status=$?; nmcli connection delete id \"$1\" >/dev/null 2>&1; exit $status; }";
+                + " | nmcli connection up id \"$1\" passwd-file /dev/stdin" + cleanup;
 
         const keyManagement = network.security.includes("WPA3") ? "sae" : "wpa-psk";
         connector.environment = { LATTO_WIFI_PSK: password || "" };
-        connector.command = ["sh", "-c", script, "sh", network.ssid, keyManagement];
+        connector.command = ["sh", "-c", script, "sh", network.ssid, keyManagement, identity || ""];
         connector.running = true;
     }
 
@@ -186,15 +202,56 @@ QtObject {
             root.connecting = "";
             if (code === 0) {
                 Activities.show("wifi", 70, { label: "Connected to " + ssid, value: -1, off: false }, 2500);
+                // Ask NetworkManager to look for a sign-in page straight away.
+                root.portalNotified = false;
+                root.connectivityChecker.running = true;
             } else {
                 root.failedSsid = ssid;
                 const message = connectErrors.text.trim().split("\n").pop() || "";
-                root.error = /secrets|password|802-1x/i.test(message) ? "Wrong password" : "Couldn't connect";
+                root.error = /secrets|password|802-1x|authentication/i.test(message)
+                    ? (root.connectingEnterprise ? "Wrong username or password" : "Wrong password")
+                    : "Couldn't connect";
             }
             // Drop the password from memory.
             root.connector.environment = {};
             root.probe.running = true;
             root.relistLater.restart();
+        }
+    }
+
+    // --- captive portals ---------------------------------------------------
+
+    function openPortal() {
+        Quickshell.execDetached(["xdg-open", portalProbeUrl]);
+    }
+
+    // Announced once per connection.
+    property bool portalNotified: false
+
+    onPortalChanged: {
+        if (!portal) {
+            // Signed in (or moved on): a later portal is worth a new prompt.
+            if (connectivity === "full")
+                portalNotified = false;
+            return;
+        }
+        if (portalNotified)
+            return;
+        portalNotified = true;
+        const network = connections.length > 0 ? connections[0].name : "this network";
+        portalPrompt.command = ["sh", "-c",
+            "action=$(notify-send -a Wi-Fi -i network-wireless -t 30000 -A default='Sign in' \"Sign in to $1\" 'This network needs you to log in on a web page before it works.')"
+            + " && [ \"$action\" = default ] && xdg-open \"$2\"",
+            "sh", network, portalProbeUrl];
+        portalPrompt.running = true;
+    }
+
+    property Process portalPrompt: Process {}
+
+    property Process connectivityChecker: Process {
+        command: ["nmcli", "networking", "connectivity", "check"]
+        stdout: StdioCollector {
+            onStreamFinished: root.connectivity = this.text.trim()
         }
     }
 
@@ -205,15 +262,16 @@ QtObject {
 
     // --- radio and active connections ----------------------------------
 
-    // First line: the Wi-Fi radio ("enabled"/"disabled"); then one line per
-    // active connection.
+    // Lines: the Wi-Fi radio ("enabled"/"disabled"), connectivity, then one
+    // line per active connection.
     property Process probe: Process {
-        command: ["sh", "-c", "nmcli radio wifi 2>/dev/null; nmcli -t -f NAME,TYPE connection show --active 2>/dev/null"]
+        command: ["sh", "-c", "nmcli radio wifi 2>/dev/null; nmcli -t -f CONNECTIVITY general 2>/dev/null; nmcli -t -f NAME,TYPE connection show --active 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = this.text.trim().split("\n");
                 root.wifiEnabled = lines[0] === "enabled";
-                root.connections = lines.slice(1)
+                root.connectivity = lines[1] || "";
+                root.connections = lines.slice(2)
                     .filter(line => line.length > 0)
                     .map(line => {
                         const parts = line.split(":");

@@ -145,9 +145,13 @@ Hover the island to open it; move the pointer away to close it.
   - **Calendar:** a month grid, plus upcoming events from khal if enabled.
   - **Overview:** quick toggles for Wi-Fi, Bluetooth, Do Not Disturb, night
     light (hyprsunset) and the microphone. The Wi-Fi toggle (or the network
-    tile) opens nearby networks: click a saved or open one to connect, or
-    type the password for a new secured one. Enterprise (802.1X) networks
-    must be set up once in your system settings. Then battery (with a keep-awake
+    tile) opens nearby networks: click a saved or open one to connect, type
+    the password for a new secured one, or a username and password for an
+    enterprise (802.1X) one such as eduroam (PEAP/MSCHAPv2, the common
+    setup; certificate-based networks still need your system settings). On
+    networks that want a web sign-in (hotels, trains, campuses), the island
+    sends a "Sign in to …" notification and the connected network shows a
+    Sign in button that opens the login page. Then battery (with a keep-awake
     toggle), network, Bluetooth, weather, and adjustable volume and
     brightness.
 

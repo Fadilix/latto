@@ -23,8 +23,10 @@ PanelWindow {
     // Room for the expanded pill plus its shadow.
     implicitHeight: Theme.topMargin + Theme.expandedHeight + 48
     exclusiveZone: 0
-    // Keyboard input only while open (password fields, text inputs).
-    focusable: window.expanded
+    // The keyboard only while a field is being typed into (a Wi-Fi password);
+    // Hyprland won't hand an "on demand" overlay the keyboard, so it is taken
+    // exclusively for that moment and given straight back.
+    WlrLayershell.keyboardFocus: IslandState.heldOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
     WlrLayershell.namespace: "latto-island"
     WlrLayershell.layer: WlrLayer.Overlay

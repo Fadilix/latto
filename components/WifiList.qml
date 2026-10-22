@@ -4,7 +4,8 @@ import "../theme"
 
 // Nearby Wi-Fi networks to pick from, opened from the Overview tab. Saved and
 // open networks connect on click; a new secured network asks for its password
-// inline. Enterprise (802.1X) networks need setting up elsewhere first.
+// inline, and an enterprise (802.1X) one for a username and password. When a
+// network wants a web sign-in (a captive portal), its row offers "Sign in".
 Item {
     id: root
 
@@ -26,7 +27,7 @@ Item {
         if (network.known || !network.secure) {
             closePassword();
             Network.connect(network, "");
-        } else if (!network.enterprise) {
+        } else {
             openPassword(network.ssid);
         }
     }
@@ -41,6 +42,44 @@ Item {
         if (askingFor !== "")
             IslandState.release();
         askingFor = "";
+    }
+
+    // A rounded text field with a placeholder.
+    component Field: Rectangle {
+        id: field
+
+        property alias input: input
+        property string placeholder: ""
+        property bool secret: false
+
+        height: 26
+        radius: 8
+        color: Theme.island
+        border.color: input.activeFocus ? Theme.blue : Theme.border
+        border.width: 1
+
+        TextInput {
+            id: input
+            anchors.fill: parent
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
+            verticalAlignment: TextInput.AlignVCenter
+            echoMode: field.secret ? TextInput.Password : TextInput.Normal
+            passwordCharacter: "\u2022"
+            color: Theme.text
+            selectionColor: Theme.blue
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSmall + 1
+            clip: true
+
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: input.text === ""
+                text: field.placeholder
+                color: Theme.textTertiary
+                font.pixelSize: Theme.fontSmall + 1
+            }
+        }
     }
 
     // Header: back, title, rescan and the radio switch.
@@ -157,9 +196,11 @@ Item {
             readonly property bool asking: root.askingFor === modelData.ssid
             readonly property bool busy: Network.connecting === modelData.ssid
             readonly property bool failed: Network.failedSsid === modelData.ssid
+            // A username is needed too for an enterprise network not yet saved.
+            readonly property bool needsUser: modelData.enterprise && !modelData.known
 
             width: ListView.view.width
-            height: asking ? 64 : 32
+            height: !asking ? 32 : needsUser ? 96 : 64
             Behavior on height {
                 NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.smoothCurve }
             }
@@ -179,7 +220,7 @@ Item {
                 anchors.top: parent.top
                 height: 32
                 enabled: !row.modelData.active && !row.busy
-                cursorShape: row.modelData.enterprise && !row.modelData.known ? Qt.ArrowCursor : Qt.PointingHandCursor
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.choose(row.modelData)
             }
 
@@ -243,8 +284,9 @@ Item {
                     visible: text !== ""
                     text: row.busy ? "Connecting…"
                         : row.failed ? Network.error
+                        : row.modelData.active && Network.portal ? "Needs sign-in"
                         : row.modelData.active ? "Connected"
-                        : row.modelData.enterprise && !row.modelData.known ? "Set up in system settings"
+                        : row.needsUser ? "Username & password"
                         : row.modelData.known ? "Saved"
                         : ""
                     color: row.failed ? Theme.red : row.modelData.active ? Theme.blue : Theme.textTertiary
@@ -265,6 +307,14 @@ Item {
                 }
                 IslandButton {
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: row.modelData.active && Network.portal
+                    text: "Sign in"
+                    fontSize: Theme.fontCaption + 1
+                    primary: true
+                    onClicked: Network.openPortal()
+                }
+                IslandButton {
+                    anchors.verticalCenter: parent.verticalCenter
                     visible: row.modelData.active
                     icon: "close"
                     iconSize: 11
@@ -273,72 +323,71 @@ Item {
                 }
             }
 
-            // Password entry for a new secured network.
-            Item {
+            // Sign-in for a new secured network: a username for an enterprise
+            // one, then the password. Enter joins, Escape cancels.
+            Column {
+                id: signIn
                 anchors.left: ssidLabel.left
                 anchors.right: parent.right
                 anchors.rightMargin: 8
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 6
-                height: 26
+                spacing: 6
                 visible: row.asking
                 opacity: row.asking ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: Theme.fadeDuration } }
 
-                Rectangle {
-                    id: field
-                    anchors.left: parent.left
-                    anchors.right: connectButton.left
-                    anchors.rightMargin: 6
-                    height: parent.height
-                    radius: 8
-                    color: Theme.island
-                    border.color: password.activeFocus ? Theme.blue : Theme.border
-                    border.width: 1
-
-                    TextInput {
-                        id: password
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        verticalAlignment: TextInput.AlignVCenter
-                        echoMode: TextInput.Password
-                        passwordCharacter: "•"
-                        color: Theme.text
-                        selectionColor: Theme.blue
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSmall + 1
-                        clip: true
-                        focus: row.asking
-                        onVisibleChanged: if (visible) forceActiveFocus()
-                        onAccepted: if (text !== "") connectButton.clicked()
-                        Keys.onEscapePressed: {
-                            text = "";
-                            root.closePassword();
-                        }
-
-                        Label {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: password.text === ""
-                            text: "Password"
-                            color: Theme.textTertiary
-                            font.pixelSize: Theme.fontSmall + 1
-                        }
-                    }
+                function join() {
+                    if (password.input.text === "" || (row.needsUser && username.input.text === ""))
+                        return;
+                    Network.connect(row.modelData, password.input.text, row.needsUser ? username.input.text : "");
+                    password.input.text = "";
+                    root.closePassword();
                 }
-                IslandButton {
-                    id: connectButton
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "Join"
-                    fontSize: Theme.fontSmall
-                    primary: true
-                    onClicked: {
-                        if (password.text === "")
-                            return;
-                        Network.connect(row.modelData, password.text);
-                        password.text = "";
-                        root.closePassword();
+
+                function cancel() {
+                    password.input.text = "";
+                    root.closePassword();
+                }
+
+                onVisibleChanged: {
+                    if (visible)
+                        (row.needsUser ? username : password).input.forceActiveFocus();
+                }
+
+                Field {
+                    id: username
+                    width: parent.width
+                    visible: row.needsUser
+                    placeholder: "Username"
+                    input.KeyNavigation.tab: password.input
+                    input.onAccepted: password.input.forceActiveFocus()
+                    input.Keys.onEscapePressed: signIn.cancel()
+                }
+
+                Item {
+                    width: parent.width
+                    height: 26
+
+                    Field {
+                        id: password
+                        anchors.left: parent.left
+                        anchors.right: joinButton.left
+                        anchors.rightMargin: 6
+                        placeholder: "Password"
+                        secret: true
+                        input.KeyNavigation.backtab: username.input
+                        input.onAccepted: signIn.join()
+                        input.Keys.onEscapePressed: signIn.cancel()
+                    }
+                    IslandButton {
+                        id: joinButton
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Join"
+                        fontSize: Theme.fontSmall
+                        primary: true
+                        onClicked: signIn.join()
                     }
                 }
             }
