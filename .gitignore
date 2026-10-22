@@ -1,0 +1,9 @@
+# Backups made by install.sh when run against files inside the repo
+*.bak-latto-*
+
+# Editor and OS clutter
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
