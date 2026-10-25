@@ -211,7 +211,7 @@ PanelWindow {
         }
 
         opacity: reveal
-        scale: pressScale * (0.3 + 0.7 * reveal)
+        scale: window.integrated ? 1 : pressScale * (0.3 + 0.7 * reveal)
 
         state: window.mode
         states: [
@@ -219,9 +219,9 @@ PanelWindow {
                 name: "hidden"
                 PropertyChanges {
                     target: pill
-                    width: Theme.dotSize
-                    height: Theme.dotSize
-                    radius: Theme.dotSize / 2
+                    width: window.integrated ? 156 : Theme.dotSize
+                    height: window.integrated ? window.hostCompactHeight : Theme.dotSize
+                    radius: window.integrated ? window.hostCompactHeight / 2 : Theme.dotSize / 2
                     reveal: 0
                 }
                 PropertyChanges { target: compact; opacity: 0; scale: 0.92; blur: Theme.hiddenBlur }
@@ -268,10 +268,15 @@ PanelWindow {
         ]
 
         transitions: [
+            // A hosted bar hides and returns immediately with fullscreen.
+            // Empty transitions prevent the generic morph from taking over.
+            Transition { to: "hidden"; enabled: window.integrated },
+            Transition { from: "hidden"; enabled: window.integrated },
             // Into hiding: the content leaves, the island flattens and draws in
             // to a dot, and the dot fades away.
             Transition {
                 to: "hidden"
+                enabled: !window.integrated
                 SequentialAnimation {
                     ParallelAnimation {
                         NumberAnimation {
@@ -309,6 +314,7 @@ PanelWindow {
             // to full size while its content sharpens in.
             Transition {
                 from: "hidden"
+                enabled: !window.integrated
                 SequentialAnimation {
                     NumberAnimation {
                         target: pill

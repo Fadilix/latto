@@ -28,6 +28,8 @@ The attached notch presentation is opt-in for a host shell that supplies
 `IslandWindow.barComponent`. Only that presentation uses a flush 32px bar,
 matching surface color, concave animated joins, narrower 320px notifications
 and reserved desktop space. No standalone setting or theme value is changed.
+Fullscreen hides and restores the hosted bar immediately, without the dot
+animation. Standalone Latto retains its dot exit and entrance.
 Removing the host's `barComponent` restores the floating presentation.
 
 The bar host starts the same background services as `shell.qml`; run one host

@@ -11,13 +11,16 @@ Item {
 
     signal back()
 
+    // A separate popup owns its own keyboard and lifetime.
+    property bool manageIslandHold: true
+
     // The network whose password row is open, or "".
     property string askingFor: ""
 
     Component.onCompleted: Network.watch()
     Component.onDestruction: {
         Network.unwatch();
-        if (askingFor !== "")
+        if (manageIslandHold && askingFor !== "")
             IslandState.release();
     }
 
@@ -33,13 +36,13 @@ Item {
     }
 
     function openPassword(ssid) {
-        if (askingFor === "")
+        if (manageIslandHold && askingFor === "")
             IslandState.holdOpen();
         askingFor = ssid;
     }
 
     function closePassword() {
-        if (askingFor !== "")
+        if (manageIslandHold && askingFor !== "")
             IslandState.release();
         askingFor = "";
     }
