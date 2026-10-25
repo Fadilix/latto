@@ -15,14 +15,24 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
+    // Optional host surface. Standalone Latto keeps its original geometry;
+    // a shell can supply a bar without duplicating the island or its services.
+    property Component barComponent: null
+    property color barColor: "#08080a"
+    readonly property bool integrated: barComponent !== null
+    readonly property real centerWidth: pill.width
+    readonly property int hostTopMargin: integrated ? 0 : Theme.topMargin
+    readonly property int hostCompactHeight: integrated ? 32 : Theme.compactHeight
+    readonly property int hostNotificationWidth: integrated ? 320 : Theme.notificationWidth
+
     anchors {
         top: true
         left: true
         right: true
     }
     // Room for the expanded pill plus its shadow.
-    implicitHeight: Theme.topMargin + Theme.expandedHeight + 48
-    exclusiveZone: 0
+    implicitHeight: hostTopMargin + Theme.expandedHeight + 48
+    exclusiveZone: integrated && !fullscreen ? hostCompactHeight : 0
     // The keyboard only while a field is being typed into (a Wi-Fi password);
     // Hyprland won't hand an "on demand" overlay the keyboard, so it is taken
     // exclusively for that moment and given straight back.
@@ -31,7 +41,25 @@ PanelWindow {
     WlrLayershell.namespace: "latto-island"
     WlrLayershell.layer: WlrLayer.Overlay
     // While hidden the island takes no input, so clicks reach the fullscreen app.
-    mask: Region { item: window.mode === "hidden" ? null : pill }
+    mask: Region {
+        item: window.mode === "hidden" ? null : pill
+        Region { item: barLoader.visible ? barLoader : null }
+        Region { item: leftShoulder.visible ? leftShoulder : null }
+        Region { item: rightShoulder.visible ? rightShoulder : null }
+    }
+
+    Loader {
+        id: barLoader
+        anchors.top: parent.top
+        anchors.topMargin: window.hostTopMargin
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: 0
+        anchors.rightMargin: 0
+        height: window.hostCompactHeight
+        visible: window.integrated && !window.fullscreen
+        sourceComponent: window.barComponent
+    }
 
     // `open` follows the pointer with a short delay each way: brushing past
     // does not open the island, and leaving it always closes it.
@@ -115,13 +143,40 @@ PanelWindow {
         }
     }
 
+    // Concave shoulders join the growing notch to the bar's bottom edge.
+    // Follow the animated pill geometry so opening, closing and banners all
+    // share one continuous silhouette, including interrupted transitions.
+    NotchShoulder {
+        id: leftShoulder
+        readonly property real growth: Math.max(0, Math.min(1,
+            (pill.height - window.hostCompactHeight) / 40))
+        width: 16 * growth
+        height: width
+        x: pill.x - width + 0.5
+        y: window.hostCompactHeight - 0.5
+        surfaceColor: window.barColor
+        visible: window.integrated && !window.fullscreen && growth > 0
+        opacity: pill.opacity
+    }
+    NotchShoulder {
+        id: rightShoulder
+        width: leftShoulder.width
+        height: width
+        x: pill.x + pill.width - 0.5
+        y: leftShoulder.y
+        surfaceColor: window.barColor
+        visible: leftShoulder.visible
+        opacity: pill.opacity
+        transform: Scale { origin.x: rightShoulder.width / 2; xScale: -1 }
+    }
+
     RectangularShadow {
         anchors.fill: pill
         radius: pill.radius
         blur: window.expanded ? 36 : 14
         offset.y: window.expanded ? 12 : 3
         color: Qt.rgba(0, 0, 0, window.expanded ? 0.55 : 0.35)
-        opacity: pill.opacity
+        opacity: window.integrated && !window.fullscreen ? 0 : pill.opacity
         scale: pill.scale
         transformOrigin: Item.Top
 
@@ -132,22 +187,25 @@ PanelWindow {
         id: pill
 
         anchors.top: parent.top
-        anchors.topMargin: Theme.topMargin
+        anchors.topMargin: window.hostTopMargin
         anchors.horizontalCenter: parent.horizontalCenter
         transformOrigin: Item.Top
 
-        width: Theme.idleWidth
-        height: Theme.compactHeight
-        radius: Theme.compactHeight / 2
-        color: Theme.island
+        width: window.integrated ? 156 : Theme.idleWidth
+        height: window.hostCompactHeight
+        radius: window.hostCompactHeight / 2
+        // The top remains attached to the bar throughout the spring morph.
+        topLeftRadius: window.integrated && !window.fullscreen ? 0 : radius
+        topRightRadius: window.integrated && !window.fullscreen ? 0 : radius
+        color: window.integrated ? window.barColor : Theme.island
         border.color: Theme.border
-        border.width: 1
+        border.width: window.integrated && !window.fullscreen ? 0 : 1
         clip: true
 
         // 1 while shown; 0 shrinks the dot to nothing as the island hides.
         property real reveal: 1
         // A quick squeeze when the collapsed pill is pressed.
-        property real pressScale: tap.pressed && !window.expanded ? 0.95 : 1
+        property real pressScale: !window.integrated && tap.pressed && !window.expanded ? 0.95 : 1
         Behavior on pressScale {
             NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.springCurve }
         }
@@ -170,7 +228,7 @@ PanelWindow {
             },
             State {
                 name: "idle"
-                PropertyChanges { target: pill; width: Theme.idleWidth }
+                PropertyChanges { target: pill; width: window.integrated ? 156 : Theme.idleWidth }
             },
             State {
                 name: "media"
@@ -189,7 +247,7 @@ PanelWindow {
                 name: "notification"
                 PropertyChanges {
                     target: pill
-                    width: Theme.notificationWidth
+                    width: window.hostNotificationWidth
                     height: Theme.notificationHeight
                     radius: Theme.notificationRadius
                 }
@@ -409,7 +467,7 @@ PanelWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: Theme.compactHeight
+            height: window.hostCompactHeight
             transformOrigin: Item.Top
             mode: window.mode
             visible: opacity > 0
@@ -421,7 +479,7 @@ PanelWindow {
             id: popup
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Theme.notificationWidth
+            width: window.hostNotificationWidth
             height: Theme.notificationHeight
             transformOrigin: Item.Top
             opacity: 0

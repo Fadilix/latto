@@ -9,6 +9,9 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
-        delegate: IslandWindow {}
+        // Standalone presentation: floating pill, original margins, shadows,
+        // dimensions and press animation. Only a host supplying barComponent
+        // opts into the attached notch presentation.
+        delegate: IslandWindow { barComponent: null }
     }
 }

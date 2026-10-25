@@ -126,3 +126,31 @@ func TestReportRunsAdapterAndNotification(t *testing.T) {
 		}
 	}
 }
+
+func TestIPCPathUsesRunningBar(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "latto")
+	bar := filepath.Join(root, "bar.qml")
+	if err := os.WriteFile(bar, []byte(""), 0600); err != nil {
+		t.Fatal(err)
+	}
+	mock := filepath.Join(root, "qs")
+	if err := os.WriteFile(mock, []byte("#!/bin/sh\necho 'Process ID: 123'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", root)
+	t.Setenv("LATTO_SHELL", "")
+	if got := ipcPath(repo); got != bar {
+		t.Fatalf("got %q, want %q", got, bar)
+	}
+	if err := os.WriteFile(mock, []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if got := ipcPath(repo); got != repo {
+		t.Fatalf("standalone fallback: %q", got)
+	}
+	t.Setenv("LATTO_SHELL", "/custom/shell.qml")
+	if got := ipcPath(repo); got != "/custom/shell.qml" {
+		t.Fatalf("override: %q", got)
+	}
+}

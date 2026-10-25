@@ -90,8 +90,15 @@ dir="$(latto_dir)" || exit 0
 [ -f "$dir/shell.qml" ] || exit 0
 project="$(basename "$(field .cwd)")"
 
+# Agent hooks and the bar are different Quickshell config paths.
+ipc_path="${LATTO_SHELL:-$dir}"
+bar_path="$(dirname "$dir")/bar.qml"
+if [ -z "${LATTO_SHELL:-}" ] && [ -f "$bar_path" ] && qs list -p "$bar_path" 2>/dev/null | grep -q 'Process ID:'; then
+    ipc_path="$bar_path"
+fi
+
 ipc() {
-    qs -p "$dir" ipc call claude "$@" >/dev/null 2>&1
+    qs -p "$ipc_path" ipc call claude "$@" >/dev/null 2>&1
 }
 
 report() {

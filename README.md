@@ -17,6 +17,23 @@ One island sits at the top centre of each monitor and expands on hover into
 tabs for media, notifications, stats, timers, clipboard, calendar and an
 overview.
 
+### Standalone or embedded in a bar
+
+Running `latto start` or `quickshell -p /path/to/latto` keeps the original
+floating island: an 8px top margin, 36px compact height, fully rounded corners,
+border, shadow and press animation. It reserves no desktop space. Notification
+banners retain their original 420px width.
+
+The attached notch presentation is opt-in for a host shell that supplies
+`IslandWindow.barComponent`. Only that presentation uses a flush 32px bar,
+matching surface color, concave animated joins, narrower 320px notifications
+and reserved desktop space. No standalone setting or theme value is changed.
+Removing the host's `barComponent` restores the floating presentation.
+
+The bar host starts the same background services as `shell.qml`; run one host
+at a time. Agent hooks detect a running sibling `bar.qml`, otherwise they keep
+targeting standalone Latto. `LATTO_SHELL` can select a specific host explicitly.
+
 ## Install
 
 ```sh

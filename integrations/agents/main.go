@@ -85,6 +85,23 @@ func repoDir() string {
 	return filepath.Dir(filepath.Dir(executable))
 }
 
+// Keep hooks pointed at the active host without changing provider configs.
+func ipcPath(repo string) string {
+	if path := os.Getenv("LATTO_SHELL"); path != "" {
+		return path
+	}
+	bar := filepath.Join(filepath.Dir(repo), "bar.qml")
+	if fileExists(bar) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		output, err := exec.CommandContext(ctx, "qs", "list", "-p", bar).Output()
+		if err == nil && strings.Contains(string(output), "Process ID:") {
+			return bar
+		}
+	}
+	return repo
+}
+
 func fallback(data object, key, defaultValue string) string {
 	if s := value(data[key]); s != "" && s != "0" {
 		return s
@@ -187,7 +204,10 @@ func report(args []string, repo string) {
 			data["icon"] = icon
 		}
 	}
-	for _, command := range commands(data, repo, time.Now().UnixMilli()) {
+	for index, command := range commands(data, repo, time.Now().UnixMilli()) {
+		if index == 0 {
+			command[2] = ipcPath(repo)
+		}
 		run(command)
 	}
 }
