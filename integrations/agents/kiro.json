@@ -1,0 +1,19 @@
+{
+  "agent": "Kiro",
+  "events": {
+    "UserPromptSubmit": "prompt",
+    "userPromptSubmit": "prompt",
+    "PreToolUse": "working",
+    "preToolUse": "working",
+    "PostToolUse": "working",
+    "postToolUse": "working",
+    "Stop": "done",
+    "stop": "done"
+  },
+  "fields": {
+    "session": "session_id",
+    "cwd": "cwd",
+    "detail": "tool_name"
+  },
+  "icon": "icons/kiro.svg"
+}

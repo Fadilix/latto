@@ -28,6 +28,9 @@ FileView {
         property int nowPlayingDuration: 4000
         // Claude Code live activity (fed by the hooks install.sh sets up).
         property bool claudeActivity: true
+        property bool agentActivity: true
+        // Agent name (lowercase) -> activity and notification tint overrides.
+        property var agentColors: ({})
         // How long "needs input" stays on the island, in ms.
         property int claudeInputDuration: 10000
         // Pomodoro lengths in minutes; a long break follows every
@@ -72,6 +75,8 @@ FileView {
     readonly property alias hideInFullscreen: adapter.hideInFullscreen
     readonly property alias mediaAlwaysShown: adapter.mediaAlwaysShown
     readonly property alias nowPlayingDuration: adapter.nowPlayingDuration
+    readonly property alias agentColors: adapter.agentColors
+    readonly property alias agentActivity: adapter.agentActivity
     readonly property alias claudeActivity: adapter.claudeActivity
     readonly property alias claudeInputDuration: adapter.claudeInputDuration
     readonly property alias pomodoroFocusMinutes: adapter.pomodoroFocusMinutes

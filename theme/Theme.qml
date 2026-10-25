@@ -31,8 +31,18 @@ QtObject {
     readonly property color cyan: "#64d2ff"
     readonly property color blue: "#0a84ff"
     readonly property color indigo: "#5e5ce6"
-    // Claude's coral, for the Claude Code live activity.
-    readonly property color claude: "#d97757"
+    // Agent identity colors; user overrides also support future adapters.
+    readonly property color claude: agentColor("claude")
+    function agentColor(agent) {
+        const name = (agent || "").toLowerCase().trim();
+        const key = name === "claude code" ? "claude" : name;
+        const overrides = Settings.agentColors || {};
+        if (overrides[key]) return overrides[key];
+        if (key === "claude") return "#d97757";
+        if (key === "kiro") return "#9046ff";
+        if (key === "codex") return "#7a9dff";
+        return accent;
+    }
 
     // Island geometry
     readonly property int topMargin: 8

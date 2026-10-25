@@ -58,7 +58,7 @@ QtObject {
 
     // `at` is when the hook fired; without one (an older hook) it is now.
     function update(id, state, project, detail, at, turnStart, tokens) {
-        if (!id)
+        if (!id || ["working", "input", "done", "end"].indexOf(state) < 0)
             return;
         const time = Number(at) > 0 ? Number(at) : Date.now();
         const existing = sessions.find(session => session.id === id);
@@ -79,6 +79,7 @@ QtObject {
 
         const entry = {
             id: id,
+            agent: existing ? existing.agent : (id.indexOf("agent:") === 0 ? "agent" : ""),
             project: project || (existing ? existing.project : ""),
             state: state,
             detail: detail,
@@ -95,7 +96,7 @@ QtObject {
     function prompt(id, project, at) {
         const time = Number(at) > 0 ? Number(at) : Date.now();
         update(id, "working", project, "Thinking", time, time, 0);
-        sessions = sessions.map(session => session.id === id
+        sessions = sessions.map(session => session.id === id && session.updatedAt === time
             ? Object.assign({}, session, { startedAt: time, tokens: 0 })
             : session);
     }
@@ -108,7 +109,7 @@ QtObject {
     // starts waiting, then gets out of the way. Repeated wait signals don't
     // bring it back; only a new wait (after more work) does.
     onCurrentChanged: {
-        if (!current || !Settings.claudeActivity) {
+        if (!current || !(current.agent ? Settings.agentActivity : Settings.claudeActivity)) {
             Activities.dismiss("claude");
             shownKey = "";
             return;
@@ -142,6 +143,28 @@ QtObject {
                 return "idle";
             return [s.project, s.state, s.detail, root.elapsedText(Date.now() - s.startedAt), root.tokensText(s.tokens),
                 root.count + (root.count === 1 ? " session" : " sessions")].join(" | ");
+        }
+    }
+
+    // Shared protocol for any coding agent. Keep the Claude IPC above compatible
+    // with existing hooks; all providers share the same session arbitration.
+    property IpcHandler agentIpc: IpcHandler {
+        target: "agents"
+
+        function report(agent: string, session: string, event: string, project: string, detail: string, at: string, startedAt: string, tokens: string): void {
+            if (!agent || !session || !Settings.agentActivity)
+                return;
+            const id = "agent:" + JSON.stringify([agent, session]);
+            const label = agent + (project ? " · " + project : "");
+            if (event === "prompt")
+                root.prompt(id, label, at);
+            else
+                root.update(id, event, label, detail, at, startedAt, tokens);
+            root.sessions = root.sessions.map(entry => entry.id === id
+                ? Object.assign({}, entry, { agent: agent }) : entry);
+        }
+        function status(): string {
+            return JSON.stringify(root.sessions);
         }
     }
 

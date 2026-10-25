@@ -104,6 +104,17 @@ PanelWindow {
         onTriggered: if (!IslandState.heldOpen) window.open = false
     }
 
+    Connections {
+        target: hyprMonitor ?? null
+        ignoreUnknownSignals: true
+        function onActiveWorkspaceChanged() {
+            const ws = hyprMonitor ? hyprMonitor.activeWorkspace : null;
+            if (!ws) return;
+            const label = ws.name && ws.name !== String(ws.id) ? ws.name : String(ws.id);
+            Activities.show("workspace", 30, { label: label, value: -1 }, Settings.hudDuration);
+        }
+    }
+
     RectangularShadow {
         anchors.fill: pill
         radius: pill.radius

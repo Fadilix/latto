@@ -29,7 +29,8 @@ Item {
         bluetooth: { icon: "bluetooth", color: Theme.blue },
         capsLock: { icon: "capsLock", color: Theme.text },
         timerDone: { icon: "timer", color: Theme.orange },
-        dnd: { icon: "moon", color: Theme.indigo }
+        dnd: { icon: "moon", color: Theme.indigo },
+        workspace: { icon: "grid", color: Theme.text }
     })
     // Microphone and camera alerts change look with on/off (data.off).
     readonly property var alertStyle: {
@@ -325,13 +326,14 @@ Item {
         }
     }
 
-    // Claude Code live activity: what the session is doing, and for how long.
+    // Coding agent live activity: what the session is doing, and for how long.
     Layer {
         id: claudeLayer
 
         shown: root.mode === "claude"
 
         readonly property var session: Claude.current
+        readonly property color agentColor: Theme.agentColor(session && session.agent ? session.agent : "claude")
         readonly property bool waiting: session ? session.state === "input" : false
         property real now: Date.now()
 
@@ -356,7 +358,7 @@ Item {
                 visible: !claudeLayer.waiting
                 running: claudeLayer.shown
                 size: 16
-                color: Theme.claude
+                color: claudeLayer.agentColor
             }
             Rectangle {
                 id: waitingDot
@@ -365,7 +367,7 @@ Item {
                 width: 10
                 height: 10
                 radius: 5
-                color: Theme.claude
+                color: claudeLayer.agentColor
 
                 SequentialAnimation on scale {
                     running: waitingDot.visible
@@ -412,7 +414,7 @@ Item {
                     ? [Claude.elapsedText(claudeLayer.now - claudeLayer.session.startedAt),
                        Claude.tokensText(claudeLayer.session.tokens)].filter(part => part !== "").join("  \u00B7  ")
                 : ""
-            color: claudeLayer.waiting ? Theme.claude : Theme.textSecondary
+            color: claudeLayer.waiting ? claudeLayer.agentColor : Theme.textSecondary
             font.pixelSize: Theme.fontSmall
             font.weight: Font.DemiBold
             font.features: { "tnum": 1 }

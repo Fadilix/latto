@@ -6,6 +6,8 @@
   "mediaAlwaysShown": false,
   "nowPlayingDuration": 4000,
   "claudeActivity": true,
+  "agentActivity": true,
+  "agentColors": {},
   "claudeInputDuration": 10000,
   "pomodoroFocusMinutes": 25,
   "pomodoroBreakMinutes": 5,

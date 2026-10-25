@@ -202,6 +202,13 @@ shows.
 The Claude icon is Anthropic's, so it is not shipped in this repo. The
 installer downloads it from claude.ai; without it, a generic icon is used.
 
+## Other coding agents
+
+Codex completion notifications and Kiro CLI live activity use a shared agent
+event interface. Future agents can integrate through a JSON mapping file or
+send normalized events directly, without changing the UI. Existing Claude Code
+hooks remain compatible. See [setup and the event protocol](integrations/agents/README.md).
+
 ## Layout
 
 - `install.sh`: installer and uninstaller.
@@ -227,7 +234,5 @@ installer downloads it from claude.ai; without it, a generic icon is used.
 - Keep-awake runs `systemd-inhibit`. If it ever stays active after being
   turned off, find it with `systemd-inhibit --list` and kill the leftover
   `sleep infinity`.
-- CPU temperature is read from `thermal_zone0`, which is not always the CPU
-  sensor.
 - The khal calendar integration has not been tested against a real khal
   setup.

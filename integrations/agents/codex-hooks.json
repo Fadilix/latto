@@ -1,0 +1,13 @@
+{
+  "agent": "Codex",
+  "events": {
+    "UserPromptSubmit": "prompt",
+    "PreToolUse": "working",
+    "PostToolUse": "working",
+    "PermissionRequest": "input",
+    "Stop": "end",
+    "Interrupt": "end",
+    "SessionEnd": "end"
+  },
+  "fields": {"session": "session_id", "cwd": "cwd", "detail": "tool_name"}
+}

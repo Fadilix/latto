@@ -41,7 +41,7 @@ Rectangle {
         height: 34
         radius: 11
         notification: root.notification
-        tint: root.critical ? Theme.red : Theme.accent
+        tint: root.critical ? Theme.red : Theme.agentColor(root.notification ? root.notification.appName : "")
     }
 
     Column {

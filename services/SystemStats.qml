@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import Quickshell
 import Quickshell.Io
 
 // CPU, memory, network, disk and temperature, read from /proc and sysfs.
@@ -32,7 +33,7 @@ QtObject {
         "awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{print \"mem\", t, a}' /proc/meminfo",
         "awk 'NR>2{sub(\":\", \" \"); if($1!=\"lo\"){rx+=$2; tx+=$10}} END{print \"net\", rx, tx}' /proc/net/dev",
         "df -Pk / | awk 'NR==2{print \"disk\", $3, $2}'",
-        "echo temp $(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0)"
+        "echo temp $(sh '" + Quickshell.shellDir + "/services/scripts/cpu-temp.sh')"
     ].join("; ")
 
     property var previous: null

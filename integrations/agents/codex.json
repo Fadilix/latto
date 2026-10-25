@@ -1,0 +1,13 @@
+{
+  "agent": "Codex",
+  "event_field": "type",
+  "events": {
+    "agent-turn-complete": "done"
+  },
+  "fields": {
+    "session": "thread-id",
+    "cwd": "cwd",
+    "detail": "last-assistant-message"
+  },
+  "icon": "icons/codex.svg"
+}
