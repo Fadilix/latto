@@ -129,8 +129,11 @@ func TestReportRunsAdapterAndNotification(t *testing.T) {
 
 func TestIPCPathUsesRunningBar(t *testing.T) {
 	root := t.TempDir()
-	repo := filepath.Join(root, "latto")
-	bar := filepath.Join(root, "bar.qml")
+	repo := filepath.Join(root, "latto-island")
+	bar := filepath.Join(root, "latto-bar", "bar.qml")
+	if err := os.MkdirAll(filepath.Dir(bar), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(bar, []byte(""), 0600); err != nil {
 		t.Fatal(err)
 	}

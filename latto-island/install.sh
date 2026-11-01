@@ -6,6 +6,8 @@
 #   ./install.sh --check      only report missing dependencies
 #   ./install.sh --uninstall  undo what the installer set up
 #   ./install.sh --no-start   set up, but do not (re)start latto
+#   ./install.sh --island     install the standalone island
+#   ./install.sh --bar        install the bar with the island embedded
 #
 # Safe to re-run: every step checks what is already in place. Files it changes
 # are backed up first, and what it changed is recorded so --uninstall can undo it.
@@ -19,6 +21,10 @@ BIN_DIR="$HOME/.local/bin"
 LAUNCHER="$BIN_DIR/latto"
 USER_CONFIG="$CONFIG_HOME/latto/config.json"
 HYPR_DIR="$CONFIG_HOME/hypr"
+QUICKSHELL_DIR="$CONFIG_HOME/quickshell"
+QUICKSHELL_CONFIG="$QUICKSHELL_DIR/latto"
+QUICKSHELL_MARKER="$QUICKSHELL_CONFIG/.latto-install-source"
+QUICKSHELL_MODE_MARKER="$QUICKSHELL_CONFIG/.latto-install-mode"
 HYPR_MAIN="$HYPR_DIR/hyprland.conf"
 HYPR_LATTO="$HYPR_DIR/latto.conf"
 HYPR_SOURCE_LINE="source = $HYPR_LATTO"
@@ -31,6 +37,8 @@ MASKED_RECORD="$STATE_DIR/masked-units"
 ASSUME_YES=0
 START=1
 MODE=install
+SHELL_MODE=island
+SHELL_MODE_EXPLICIT=0
 
 for arg in "$@"; do
     case "$arg" in
@@ -38,6 +46,8 @@ for arg in "$@"; do
         --check) MODE=check ;;
         --uninstall) MODE=uninstall ;;
         --no-start) START=0 ;;
+        --island) SHELL_MODE=island; SHELL_MODE_EXPLICIT=1 ;;
+        --bar) SHELL_MODE=bar; SHELL_MODE_EXPLICIT=1 ;;
         -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown option: $arg (see --help)" >&2; exit 2 ;;
     esac
@@ -69,7 +79,7 @@ ask() {
 have() { command -v "$1" >/dev/null 2>&1; }
 
 backup() {
-    [ -e "$1" ] && cp -p "$1" "$1.bak-latto-$(date +%Y%m%d-%H%M%S)"
+    { [ -e "$1" ] || [ -L "$1" ]; } && cp -a "$1" "$1.bak-latto-$(date +%Y%m%d-%H%M%S)"
     return 0
 }
 
@@ -133,7 +143,7 @@ install_launcher() {
     if [ -L "$LAUNCHER" ] && [ "$(readlink -f "$LAUNCHER")" = "$REPO/bin/latto" ]; then
         ok "$LAUNCHER already points here"
     else
-        [ -e "$LAUNCHER" ] && backup "$LAUNCHER" && rm -f "$LAUNCHER"
+        { [ -e "$LAUNCHER" ] || [ -L "$LAUNCHER" ]; } && backup "$LAUNCHER" && rm -f "$LAUNCHER"
         ln -s "$REPO/bin/latto" "$LAUNCHER"
         ok "linked $LAUNCHER -> $REPO/bin/latto"
     fi
@@ -153,6 +163,65 @@ install_user_config() {
         ok "created $USER_CONFIG (empty: every setting uses its default)"
     fi
     note "Every option, with its default: $REPO/config.example.json"
+}
+
+install_quickshell_configs() {
+    step "Quickshell configs"
+    mkdir -p "$QUICKSHELL_DIR"
+    if [ -f "$QUICKSHELL_MARKER" ] && [ "$(cat "$QUICKSHELL_MARKER")" = "$REPO" ]; then
+        copy_selected_config
+        ok "updated the installed Latto config at $QUICKSHELL_CONFIG"
+    elif [ -e "$QUICKSHELL_CONFIG" ] || [ -L "$QUICKSHELL_CONFIG" ]; then
+        warn "$QUICKSHELL_CONFIG already exists and is not managed by this installer; leaving it untouched"
+    else
+        mkdir -p "$QUICKSHELL_CONFIG/latto-island" "$QUICKSHELL_CONFIG/latto-bar"
+        copy_selected_config
+        printf '%s\n' "$REPO" >"$QUICKSHELL_MARKER"
+        ok "copied the Latto $SHELL_MODE config into $QUICKSHELL_CONFIG"
+    fi
+    if [ -f "$QUICKSHELL_MARKER" ] && [ "$(cat "$QUICKSHELL_MARKER")" = "$REPO" ]; then
+        printf '%s\n' "$SHELL_MODE" >"$QUICKSHELL_MODE_MARKER"
+        note "Installed the $SHELL_MODE config. Start it with latto or: qs -p $QUICKSHELL_CONFIG"
+    fi
+}
+
+copy_selected_config() {
+    if [ "$SHELL_MODE" = bar ]; then
+        mkdir -p "$QUICKSHELL_CONFIG/latto-island" "$QUICKSHELL_CONFIG/latto-bar"
+        cp -a "$REPO/." "$QUICKSHELL_CONFIG/latto-island/"
+        cp -a "$(dirname "$REPO")/latto-bar/." "$QUICKSHELL_CONFIG/latto-bar/"
+        sed -e 's|"../latto-island"|"./latto-island"|g' \
+            -e 's|import "." as Bar|import "./latto-bar" as Bar|' \
+            "$(dirname "$REPO")/latto-bar/bar.qml" >"$QUICKSHELL_CONFIG/shell.qml"
+    else
+        cp -a "$REPO/." "$QUICKSHELL_CONFIG/"
+    fi
+}
+
+choose_shell_mode() {
+    [ "$SHELL_MODE_EXPLICIT" = 1 ] && return
+    local previous answer
+    previous="$(cat "$QUICKSHELL_MODE_MARKER" 2>/dev/null || true)"
+    if [ -z "$previous" ] && [ -f "$QUICKSHELL_MARKER" ] \
+        && [ "$(cat "$QUICKSHELL_MARKER")" = "$REPO" ] \
+        && grep -q 'latto-bar' "$QUICKSHELL_CONFIG/shell.qml" 2>/dev/null; then
+        previous=bar
+    fi
+    if [ -t 0 ] && [ "$ASSUME_YES" = 0 ]; then
+        step "Choose a Latto config"
+        if [ "$previous" = bar ]; then
+            read -r -p "  Install the bar with the island embedded? [Y/n] " answer
+            [[ "$answer" =~ ^[Nn] ]] && SHELL_MODE=island || SHELL_MODE=bar
+        else
+            read -r -p "  Install the bar with the island embedded? [y/N] " answer
+            [[ "$answer" =~ ^[Yy] ]] && SHELL_MODE=bar || SHELL_MODE=island
+        fi
+    elif [ "$previous" = bar ]; then
+        SHELL_MODE=bar
+    else
+        SHELL_MODE=island
+    fi
+    ok "selected $SHELL_MODE"
 }
 
 # Make latto the notification daemon: stop whichever daemon owns the name and
@@ -299,7 +368,8 @@ install_claude_code() {
         chmod +x "$CLAUDE_HOOKS/$script"
     done
     # Tells latto-activity.sh where latto lives, for `qs -p <dir> ipc`.
-    printf 'LATTO_DIR=%q\n' "$REPO" >"$CLAUDE_HOOKS/latto.env"
+    printf 'LATTO_DIR=%q\n' "$QUICKSHELL_CONFIG" >"$CLAUDE_HOOKS/latto.env"
+    printf 'LATTO_BAR=%q\n' "$(dirname "$REPO")/latto-bar/bar.qml" >>"$CLAUDE_HOOKS/latto.env"
     ok "installed the latto hooks in $CLAUDE_HOOKS"
 
     # The Claude app icon is Anthropic's, so it is fetched here instead of
@@ -384,6 +454,11 @@ uninstall() {
         ok "removed $LAUNCHER"
     fi
 
+    if [ -f "$QUICKSHELL_MARKER" ] && [ "$(cat "$QUICKSHELL_MARKER")" = "$REPO" ]; then
+        rm -rf "$QUICKSHELL_CONFIG"
+        ok "removed installed config $QUICKSHELL_CONFIG"
+    fi
+
     if [ -f "$HYPR_MAIN" ] && grep -qxF "$HYPR_SOURCE_LINE" "$HYPR_MAIN"; then
         backup "$HYPR_MAIN"
         grep -vxF -e "$HYPR_SOURCE_LINE" -e "# latto dynamic island" "$HYPR_MAIN" >"$HYPR_MAIN.tmp"
@@ -438,7 +513,9 @@ case "$MODE" in
             printf '\n%sQuickshell is required. Install it, then run this again.%s\n' "$RED" "$RESET"
             exit 1
         fi
+        choose_shell_mode
         install_launcher
+    install_quickshell_configs
         install_user_config
         take_over_notifications
         install_hyprland

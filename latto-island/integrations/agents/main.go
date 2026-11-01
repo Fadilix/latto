@@ -82,7 +82,15 @@ func repoDir() string {
 	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
 		executable = resolved
 	}
-	return filepath.Dir(filepath.Dir(executable))
+	repo := filepath.Dir(filepath.Dir(executable))
+	config := filepath.Join(os.Getenv("HOME"), ".config", "quickshell", "latto")
+	if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
+		config = filepath.Join(configHome, "quickshell", "latto")
+	}
+	if marker, err := os.ReadFile(filepath.Join(config, ".latto-install-source")); err == nil && strings.TrimSpace(string(marker)) == repo {
+		return config
+	}
+	return repo
 }
 
 // Keep hooks pointed at the active host without changing provider configs.
@@ -90,7 +98,16 @@ func ipcPath(repo string) string {
 	if path := os.Getenv("LATTO_SHELL"); path != "" {
 		return path
 	}
-	bar := filepath.Join(filepath.Dir(repo), "bar.qml")
+	bar := filepath.Join(repo, "..", "latto-bar", "bar.qml")
+	if _, err := os.Stat(bar); err != nil {
+		config := filepath.Join(os.Getenv("HOME"), ".config", "quickshell", "latto", ".latto-install-source")
+		if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
+			config = filepath.Join(configHome, "quickshell", "latto", ".latto-install-source")
+		}
+		if marker, readErr := os.ReadFile(config); readErr == nil {
+			bar = filepath.Join(strings.TrimSpace(string(marker)), "..", "latto-bar", "bar.qml")
+		}
+	}
 	if fileExists(bar) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()

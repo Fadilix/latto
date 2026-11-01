@@ -12,13 +12,20 @@
 #   latto close         close it
 #   latto logs          print its log
 #
-# latto is addressed by path (qs -p), never by config name: when
-# ~/.config/quickshell/shell.qml exists, Quickshell ignores named configs.
+# latto is addressed by path (qs -p) so commands keep targeting the installed
+# named config even when another Quickshell config is active.
 
 set -euo pipefail
 
 # The repo this script lives in, following the ~/.local/bin symlink.
-LATTO_DIR="${LATTO_DIR:-$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)}"
+SOURCE_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/latto"
+if [ -z "${LATTO_DIR:-}" ] && [ -f "$CONFIG_DIR/.latto-install-source" ] \
+    && [ "$(cat "$CONFIG_DIR/.latto-install-source")" = "$SOURCE_DIR" ]; then
+    LATTO_DIR="$CONFIG_DIR"
+else
+    LATTO_DIR="${LATTO_DIR:-$SOURCE_DIR}"
+fi
 
 if ! command -v qs >/dev/null 2>&1; then
     echo "latto: quickshell (qs) is not installed" >&2

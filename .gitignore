@@ -7,6 +7,5 @@
 *.swp
 .DS_Store
 
-
 # Built agent integration helper
-/bin/latto-agent
+/latto-island/bin/latto-agent

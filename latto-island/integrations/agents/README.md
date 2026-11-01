@@ -9,12 +9,12 @@ Existing Claude Code shell hooks and the `claude` IPC endpoint remain compatible
 From the repository root:
 
 ```sh
-./integrations/agents/build.sh
+./latto-island/integrations/agents/build.sh
 ```
 
 Requires Go 1.22 or later to build; no external Go dependencies. The generated
-`bin/latto-agent` needs only `qs` and `notify-send` at runtime. Rebuild after source
-updates. The generated binary is ignored by Git. Keep it in `bin/`, or set
+`latto-island/bin/latto-agent` needs only `qs` and `notify-send` at runtime. Rebuild after source
+updates. The generated binary is ignored by Git. Keep it in `latto-island/bin/`, or set
 `LATTO_DIR` to the repository path when installing it elsewhere.
 
 Set `agentActivity` to false in `~/.config/latto/config.json` to disable new agent
@@ -32,8 +32,8 @@ purple for Kiro and blue for Codex. Override colors using lowercase agent names:
 ## Codex
 
 ```sh
-bin/latto-agent configure codex
-bin/latto-agent configure codex-hooks > /tmp/latto-codex-hooks.json
+latto-island/bin/latto-agent configure codex
+latto-island/bin/latto-agent configure codex-hooks > /tmp/latto-codex-hooks.json
 ```
 
 Copy the generated `notify` line into the **top level** of your user
@@ -57,7 +57,7 @@ Sources: [Codex lifecycle hooks](https://learn.chatgpt.com/docs/hooks),
 ## Kiro CLI V3
 
 ```sh
-bin/latto-agent configure kiro > /tmp/latto-hooks.json
+latto-island/bin/latto-agent configure kiro > /tmp/latto-hooks.json
 ```
 
 Copy that file to `~/.kiro/hooks/latto.json` to enable it globally, or to
@@ -74,7 +74,7 @@ Send normalized JSON to stdin (or as the final command argument):
 
 ```sh
 printf '%s\n' '{"agent":"My Agent","session":"abc","event":"prompt","project":"latto"}' \
-  | bin/latto-agent
+  | latto-island/bin/latto-agent
 ```
 
 Required fields: `agent`, `session`, `event`. Events: `prompt` (reset the turn
@@ -95,7 +95,7 @@ ship with SVG logos; unknown agents fall back to the terminal icon.
 Register this command in the tool's hook settings:
 
 ```sh
-/absolute/path/to/latto/bin/latto-agent --adapter /absolute/path/to/my-agent.json
+/absolute/path/to/latto/latto-island/bin/latto-agent --adapter /absolute/path/to/my-agent.json
 ```
 
 `--event NativeEvent` overrides the payload event name. Hooks stay silent on
@@ -104,4 +104,4 @@ timeouts and never execute payload text. Generated settings refer to this
 checkout; regenerate them if it moves. Remove the Codex `notify` entry and Latto
 lifecycle commands, or Kiro `latto.json`, to disconnect an integration.
 
-Run tests with `cd integrations/agents && go test ./...`.
+Run tests with `cd latto-island/integrations/agents && go test ./...`.
