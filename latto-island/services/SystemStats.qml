@@ -11,6 +11,16 @@ QtObject {
 
     readonly property int historyLength: 60
 
+    function scriptPath(name) {
+        return decodeURIComponent(new URL(Qt.resolvedUrl("scripts/" + name)).pathname);
+    }
+
+    function shellQuote(value) {
+        return "'" + value.replace(/'/g, "'\\''") + "'";
+    }
+
+    readonly property string temperatureScript: scriptPath("cpu-temp.sh")
+
     property real cpu: 0               // percent
     property real memory: 0            // percent
     property real memoryUsedGiB: 0
@@ -33,7 +43,7 @@ QtObject {
         "awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{print \"mem\", t, a}' /proc/meminfo",
         "awk 'NR>2{sub(\":\", \" \"); if($1!=\"lo\"){rx+=$2; tx+=$10}} END{print \"net\", rx, tx}' /proc/net/dev",
         "df -Pk / | awk 'NR==2{print \"disk\", $3, $2}'",
-        "echo temp $(sh '" + Quickshell.shellDir + "/services/scripts/cpu-temp.sh')"
+        "echo temp $(sh " + shellQuote(temperatureScript) + ")"
     ].join("; ")
 
     property var previous: null

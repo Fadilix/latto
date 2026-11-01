@@ -22,6 +22,10 @@ QtObject {
 
     readonly property int listLength: 12
 
+    function scriptPath(name) {
+        return decodeURIComponent(new URL(Qt.resolvedUrl("scripts/" + name)).pathname);
+    }
+
     function watch(kind) {
         if (kind === "cpu") cpuWatchers++;
         else memoryWatchers++;
@@ -79,7 +83,7 @@ QtObject {
     }
 
     property Process memorySampler: Process {
-        command: ["sh", Quickshell.shellDir + "/services/scripts/top-memory.sh", String(root.listLength)]
+        command: ["sh", root.scriptPath("top-memory.sh"), String(root.listLength)]
         stdout: StdioCollector {
             onStreamFinished: root.ingestMemory(this.text)
         }
@@ -138,7 +142,7 @@ QtObject {
     }
 
     property Process cpuSampler: Process {
-        command: ["sh", Quickshell.shellDir + "/services/scripts/cpu-sample.sh"]
+        command: ["sh", root.scriptPath("cpu-sample.sh")]
         stdout: StdioCollector {
             onStreamFinished: root.ingestCpu(this.text)
         }
